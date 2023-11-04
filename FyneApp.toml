@@ -1,0 +1,8 @@
+Website = "https://github.com/ubavic/bas-celik"
+
+[Details]
+  Icon = "assets/logo.jpeg"
+  Name = "DJB"
+  ID = "com.github.ubavic.bas-celik"
+  Version = "1.0.0"
+  Build = 6

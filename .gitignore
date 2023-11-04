@@ -1,0 +1,8 @@
+*.pdf
+*.json
+bas-celik.*
+*.tar.xz
+*.exe
+fyne-cross/
+main
+bin/
