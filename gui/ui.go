@@ -1,16 +1,20 @@
 package gui
 
 import (
+	"bitbucket.org/inceptionlib/pdfinject-go"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/app"
 	"fyne.io/fyne/v2/container"
-	"fyne.io/fyne/v2/dialog"
 	"fyne.io/fyne/v2/layout"
-	"fyne.io/fyne/v2/storage"
+	"fyne.io/fyne/v2/widget"
 	"github.com/ebfe/scard"
 	"github.com/ubavic/bas-celik/document"
 	"github.com/ubavic/bas-celik/widgets"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"strings"
 )
 
 var statusBar *widgets.StatusBar
@@ -22,25 +26,150 @@ var startPage *widgets.StartPage
 func StartGui(ctx *scard.Context, verbose bool) {
 	startPageOn = true
 
-	app := app.New()
-	win := app.NewWindow("Baš Čelik")
+	appW := app.New()
+	win := appW.NewWindow("DJB Potpisi")
 	window = &win
-	app.Settings().SetTheme(MyTheme{})
+	go pooler(ctx)
+
+	appW.Settings().SetTheme(MyTheme{})
 
 	statusBar = widgets.NewStatusBar()
 
 	startPage = widgets.NewStartPage()
 	startPage.SetStatus("", "", false)
 
-	go pooler(ctx)
-
-	win.SetContent(container.New(layout.NewPaddedLayout(), startPage))
+	win.SetContent(
+		container.New(
+			layout.NewPaddedLayout(),
+			startPage,
+		),
+	)
 	win.ShowAndRun()
 }
 
+func formatName(firstName string, lastName string, middleName string) string {
+	var st strings.Builder
+
+	st.WriteString(firstName)
+	st.WriteString(" ")
+	if len(middleName) > 0 {
+		st.WriteString(", " + middleName + ", ")
+	}
+	st.WriteString(lastName)
+
+	return st.String()
+}
+
+func enableManualUI() {
+	givenName := widget.NewEntry()
+	givenName.SetPlaceHolder("Ime")
+
+	givenSurname := widget.NewEntry()
+	givenSurname.SetPlaceHolder("Prezime")
+
+	parentGivenName := widget.NewEntry()
+	parentGivenName.SetPlaceHolder("Srednje ime")
+
+	personalNumber := widget.NewEntry()
+	personalNumber.SetPlaceHolder("JMBG")
+
+	city := widget.NewEntry()
+	city.SetPlaceHolder("Grad")
+
+	address := widget.NewEntry()
+	address.SetPlaceHolder("Ulica")
+
+	addressNo := widget.NewEntry()
+	addressNo.SetPlaceHolder("Broj")
+
+	DateOfBirth := widget.NewEntry()
+	DateOfBirth.SetPlaceHolder("DateOfBirth")
+
+	issuingAuthority := widget.NewEntry()
+	issuingAuthority.SetPlaceHolder("Dokument izdao")
+
+	issuingDate := widget.NewEntry()
+	issuingDate.SetPlaceHolder("Datum izdavanja")
+
+	documentNumber := widget.NewEntry()
+	documentNumber.SetPlaceHolder("Broj dokumenta")
+
+	authorizedCertifierName := widget.NewEntry()
+	authorizedCertifierName.SetPlaceHolder("Ime i prezime overitelja")
+
+	authorizedCertifierAddress := widget.NewEntry()
+	authorizedCertifierAddress.SetPlaceHolder("Ulica i broj overitelja")
+
+	place := widget.NewEntry()
+	place.SetPlaceHolder("Lokacija")
+
+	readCardButton := widget.NewButton("Procitaj karticu", func() {
+		setStartPage("Čitam sa kartice...", "", nil)
+	})
+	submitButton := widget.NewButton("Submit", func() {
+		executable, err := os.Executable() // Gets the path of the current executable.
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+		}
+
+		fullName := formatName(givenName.Text, givenSurname.Text, parentGivenName.Text)
+
+		form := map[string]interface{}{
+			"field_politicalPartyName":         "Dosta je bilo, Suverensiti",
+			"field_applicant":                  "Dosta je bilo, Suverensiti",
+			"field_fullName":                   fullName,
+			"field_personalNumber":             personalNumber.Text,
+			"field_place":                      city.Text,
+			"field_streetHouseNumber":          address.Text + " " + addressNo.Text,
+			"field_firstLastName":              fullName,
+			"field_dateOfBirth":                DateOfBirth.Text,
+			"field_placeStreetWithHouseNumber": city.Text + " " + place.Text,
+			"field_documentInfo":               issuingAuthority.Text + ", " + issuingDate.Text + ", " + documentNumber.Text,
+			"field_authorizedCertifier":        authorizedCertifierName.Text,
+			"field_workingPlace":               authorizedCertifierAddress.Text,
+			"field_documentRegistryNo":         "",
+			"field_location":                   place.Text,
+			"field_date":                       "17.10",
+		}
+
+		execPath := filepath.Dir(executable) // Finds the directory of the executable.
+		formPath := filepath.Join(execPath, "templates/form-01.pdf")
+
+		pdfInject := pdfinject.New()
+		_, err = pdfInject.FillWithDestFile(form, formPath, "tmp.pdf")
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+		}
+		PrintPDF("tmp.pdf", "Parlament")
+	})
+
+	form := container.NewVBox(
+		widget.NewForm(
+			widget.NewFormItem("Ime", givenName),
+			widget.NewFormItem("Srednje ime", parentGivenName),
+			widget.NewFormItem("Prezime", givenSurname),
+			widget.NewFormItem("Datum rođenja", DateOfBirth),
+			widget.NewFormItem("Grad", city),
+			widget.NewFormItem("Ulica", address),
+			widget.NewFormItem("Kućni broj", addressNo),
+			widget.NewFormItem("Ime i prezime overitelja", authorizedCertifierName),
+			widget.NewFormItem("Ulica i broj overitelja", authorizedCertifierAddress),
+			widget.NewFormItem("JMBG", personalNumber),
+			widget.NewFormItem("Broj dokumenta", documentNumber),
+			widget.NewFormItem("Dokument izdao", issuingAuthority),
+			widget.NewFormItem("Datum izdavanja", issuingDate),
+		),
+		submitButton,
+		readCardButton,
+	)
+
+	(*window).SetContent(form)
+
+	startPageOn = false
+}
+
 func setUI(doc document.Document) {
-	pdfHandler := savePdf(window, doc)
-	ui := doc.BuildUI(pdfHandler, statusBar)
+	ui := doc.BuildUI(statusBar, enableManualUI)
 	columns := container.New(layout.NewHBoxLayout(), layout.NewSpacer(), ui, layout.NewSpacer())
 	container := container.New(layout.NewPaddedLayout(), columns)
 	(*window).SetContent(container)
@@ -83,44 +212,20 @@ func setStatus(status string, err error) {
 	statusBar.Refresh()
 }
 
-func savePdf(win *fyne.Window, doc document.Document) func() {
-	return func() {
-		pdf, fileName, err := doc.BuildPdf()
+func PrintPDF(file string, pdfType string) {
+	cmd := exec.Command("./print_doc", file)
 
-		if err != nil {
-			setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
-			return
-		}
-
-		_, err = doc.BuildSign()
-		if err != nil {
-			setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
-			return
-		}
-
-		dialog := dialog.NewFileSave(func(w fyne.URIWriteCloser, err error) {
-			if w == nil || err != nil {
-				return
-			}
-
-			_, err = w.Write(pdf)
-			if err != nil {
-				setStatus("Greška pri zapisivanju PDF-a", fmt.Errorf("writing PDF: %w", err))
-				return
-			}
-
-			err = w.Close()
-			if err != nil {
-				setStatus("Greška pri zapisivanju PDF-a", fmt.Errorf("writing PDF: %w", err))
-				return
-			}
-
-			setStatus("PDF sačuvan", nil)
-		}, *win)
-
-		dialog.SetFilter(storage.NewExtensionFileFilter([]string{".pdf"}))
-		dialog.SetFileName(fileName)
-
-		dialog.Show()
+	err := cmd.Start() // Use Start() instead of Run() if you want non-blocking execution
+	if err != nil {
+		fmt.Printf("Error starting command: %s\n", err)
+		os.Exit(1)
 	}
+
+	err = cmd.Wait() // Wait for the command to finish
+	if err != nil {
+		fmt.Printf("Command finished with error: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Document sent to the " + pdfType)
 }

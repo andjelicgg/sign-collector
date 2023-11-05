@@ -2,11 +2,13 @@ package card
 
 import (
 	"encoding/binary"
+	"encoding/hex"
 	"fmt"
 	"reflect"
 
 	"github.com/ebfe/scard"
 	doc "github.com/ubavic/bas-celik/document"
+	"golang.org/x/exp/constraints"
 )
 
 type Card interface {
@@ -21,13 +23,19 @@ func ReadCard(sc *scard.Card) (doc.Document, error) {
 		return nil, fmt.Errorf("reading card %w", err)
 	}
 
-	if reflect.DeepEqual(smartCardStatus.Atr, GEMALTO_ATR_1) || reflect.DeepEqual(smartCardStatus.Atr, GEMALTO_ATR_2) {
+	if reflect.DeepEqual(smartCardStatus.Atr, GEMALTO_ATR_1) {
+		tempIdCard := Gemalto{smartCard: sc}
+		if tempIdCard.testGemalto() {
+			card = Gemalto{smartCard: sc}
+		}
+	} else if reflect.DeepEqual(smartCardStatus.Atr, GEMALTO_ATR_2) {
 		card = Gemalto{smartCard: sc}
-		card.(Gemalto).selectFiles()
+	} else if reflect.DeepEqual(smartCardStatus.Atr, GEMALTO_ATR_3) {
+		card = Gemalto{smartCard: sc}
 	} else if reflect.DeepEqual(smartCardStatus.Atr, APOLLO_ATR) {
 		card = Apollo{smartCard: sc}
 	} else {
-		return nil, fmt.Errorf("unknown card type")
+		return nil, fmt.Errorf("unknown card type: %s", hex.EncodeToString(smartCardStatus.Atr))
 	}
 
 	var d doc.Document
@@ -36,17 +44,18 @@ func ReadCard(sc *scard.Card) (doc.Document, error) {
 	case Apollo:
 		d, err = readIDCard(card)
 	case Gemalto:
+		card.initCard()
 		d, err = readIDCard(card)
 	}
 
 	if err != nil {
-		return nil, fmt.Errorf("reading ID card: %w", err)
+		return nil, fmt.Errorf("reading card: %w", err)
 	}
 
 	return d, nil
 }
 
-func assignField(fields map[uint][]byte, tag uint, target *string) {
+func assignField[T comparable](fields map[T][]byte, tag T, target *string) {
 	val, ok := fields[tag]
 	if ok {
 		*target = string(val)
@@ -65,16 +74,8 @@ func assignBoolField(fields map[uint][]byte, tag uint, target *bool) {
 }
 
 func read(card *scard.Card, offset, length uint) ([]byte, error) {
-	readSize := length
-	if readSize >= 0xFF {
-		readSize = 0xFF
-	}
-
-	apu, err := buildAPDU(0x00, 0xB0, byte((0xFF00&offset)>>8), byte(offset&0xFF), nil, readSize)
-	if err != nil {
-		return nil, fmt.Errorf("reading binary: %w", err)
-	}
-
+	readSize := min(length, 0xFF)
+	apu := buildAPDU(0x00, 0xB0, byte((0xFF00&offset)>>8), byte(offset&0xFF), nil, readSize)
 	rsp, err := card.Transmit(apu)
 	if err != nil {
 		return nil, fmt.Errorf("reading binary: %w", err)
@@ -87,7 +88,9 @@ func read(card *scard.Card, offset, length uint) ([]byte, error) {
 	return rsp[:len(rsp)-2], nil
 }
 
-func parseResponse(data []byte) map[uint][]byte {
+// Parses simple TLV encoded data, where tag and length
+// are encoded with two bytes
+func parseTLV(data []byte) map[uint][]byte {
 	m := make(map[uint][]byte)
 	offset := uint(0)
 
@@ -108,11 +111,11 @@ func parseResponse(data []byte) map[uint][]byte {
 	return m
 }
 
-func buildAPDU(cla, ins, p1, p2 byte, data []byte, ne uint) ([]byte, error) {
+func buildAPDU(cla, ins, p1, p2 byte, data []byte, ne uint) []byte {
 	length := len(data)
 
-	if length > 65535 {
-		return nil, fmt.Errorf("length too large")
+	if length > 0xFFFF {
+		panic(fmt.Errorf("APDU command length too large"))
 	}
 
 	apdu := make([]byte, 4)
@@ -169,13 +172,34 @@ func buildAPDU(cla, ins, p1, p2 byte, data []byte, ne uint) ([]byte, error) {
 					apdu = append(apdu, neB...)
 				}
 			}
-
 		}
 	}
 
-	return apdu, nil
+	return apdu
 }
 
 func responseOK(rsp []byte) bool {
 	return reflect.DeepEqual(rsp, []byte{0x90, 0x00})
+}
+
+func min[O constraints.Ordered](args ...O) O {
+	if len(args) == 0 {
+		return *new(O)
+	}
+
+	if args[0] != args[0] {
+		return args[0]
+	}
+
+	min := args[0]
+	for _, arg := range args[1:] {
+		if arg != arg {
+			return arg
+		}
+
+		if arg < min {
+			min = arg
+		}
+	}
+	return min
 }

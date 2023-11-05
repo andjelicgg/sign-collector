@@ -2,6 +2,7 @@ package document
 
 import (
 	"bitbucket.org/inceptionlib/pdfinject-go"
+	"errors"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
@@ -11,7 +12,9 @@ import (
 	"github.com/signintech/gopdf"
 	"github.com/ubavic/bas-celik/widgets"
 	"image"
+	"math"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -19,15 +22,17 @@ import (
 
 type IdDocument struct {
 	Loaded                 bool
-	Photo                  image.Image
+	Portrait               image.Image
 	DocumentNumber         string
+	DocumentType           string
+	DocumentSerialNumber   string
 	IssuingDate            string
 	ExpiryDate             string
 	IssuingAuthority       string
 	PersonalNumber         string
 	Surname                string
 	GivenName              string
-	ParentName             string
+	ParentGivenName        string
 	Sex                    string
 	PlaceOfBirth           string
 	CommunityOfBirth       string
@@ -47,7 +52,7 @@ type IdDocument struct {
 }
 
 func (doc *IdDocument) formatName() string {
-	return doc.GivenName + ", " + doc.ParentName + ", " + doc.Surname
+	return doc.GivenName + ", " + doc.ParentGivenName + ", " + doc.Surname
 }
 
 func (doc *IdDocument) formatAddress() string {
@@ -86,8 +91,27 @@ func (doc *IdDocument) formatPlaceOfBirth() string {
 	return placeOfBirth.String()
 }
 
-func (doc IdDocument) BuildUI(pdfHandler func(), statusBar *widgets.StatusBar) *fyne.Container {
-	nameF := widgets.NewField("Ime, ime roditelja, prezime", doc.formatName(), 350)
+func savePdf(doc *IdDocument) func() {
+	return func() {
+		err := doc.BuildPdf()
+		if err != nil {
+			//setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
+			return
+		}
+
+		//_, err = doc.BuildSign()
+		//if err != nil {
+		//	//setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
+		//	return
+		//}
+	}
+}
+
+func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func()) *fyne.Container {
+	nameF := widgets.NewField("Ime", doc.GivenName, 100)
+	parentF := widgets.NewField("Ime roditelja", doc.ParentGivenName, 100)
+	surnameF := widgets.NewField("Prezime roditelja", doc.Surname, 100)
+	fullNameRow := container.New(layout.NewHBoxLayout(), nameF, parentF, surnameF)
 	birthDateF := widgets.NewField("Datum rođenja", doc.DateOfBirth, 100)
 	sexF := widgets.NewField("Pol", doc.Sex, 50)
 	personalNumberF := widgets.NewField("JMBG", doc.PersonalNumber, 200)
@@ -95,9 +119,9 @@ func (doc IdDocument) BuildUI(pdfHandler func(), statusBar *widgets.StatusBar) *
 	birthPlaceF := widgets.NewField("Mesto rođenja, opština i država", doc.formatPlaceOfBirth(), 350)
 	addressF := widgets.NewField("Prebivalište i adresa stana", doc.formatAddress(), 350)
 	addressDateF := widgets.NewField("Datum promene adrese", doc.AddressDate, 10)
-	personInformationGroup := widgets.NewGroup("Podaci o građaninu", nameF, birthRow, birthPlaceF, addressF, addressDateF)
+	personInformationGroup := widgets.NewGroup("Podaci o građaninu", fullNameRow, birthRow, birthPlaceF, addressF, addressDateF)
 
-	issuedByF := widgets.NewField("Dokument izdaje", doc.IssuingAuthority, 10)
+	issuedByF := widgets.NewField("Dokument izdaje", doc.IssuingAuthority, 100)
 	documentNumberF := widgets.NewField("Broj dokumenta", doc.DocumentNumber, 100)
 	issueDateF := widgets.NewField("Datum izdavanja", doc.IssuingDate, 100)
 	expiryDateF := widgets.NewField("Važi do", doc.ExpiryDate, 100)
@@ -105,16 +129,39 @@ func (doc IdDocument) BuildUI(pdfHandler func(), statusBar *widgets.StatusBar) *
 	docGroup := widgets.NewGroup("Podaci o dokumentu", issuedByF, docRow)
 	colRight := container.New(layout.NewVBoxLayout(), personInformationGroup, docGroup)
 
-	imgWidget := canvas.NewImageFromImage(doc.Photo)
+	imgWidget := canvas.NewImageFromImage(doc.Portrait)
 	imgWidget.SetMinSize(fyne.Size{Width: 200, Height: 250})
 	imgWidget.FillMode = canvas.ImageFillContain
 	colLeft := container.New(layout.NewVBoxLayout(), imgWidget)
 	cols := container.New(layout.NewHBoxLayout(), colLeft, colRight)
 
+	pdfHandler := savePdf(&doc)
+
 	saveButton := widget.NewButton("Štampaj", pdfHandler)
-	buttonBar := container.New(layout.NewHBoxLayout(), statusBar, layout.NewSpacer(), saveButton)
+	enableManualInput := widget.NewButton("Rucni unso", func() {
+		enableManualUI()
+	})
+	buttonBar := container.New(layout.NewHBoxLayout(), statusBar, layout.NewSpacer(), saveButton, enableManualInput)
 
 	return container.New(layout.NewVBoxLayout(), cols, buttonBar)
+}
+
+func PrintPDF(file string, pdfType string) {
+	cmd := exec.Command("./print_doc", file)
+
+	err := cmd.Start() // Use Start() instead of Run() if you want non-blocking execution
+	if err != nil {
+		fmt.Printf("Error starting command: %s\n", err)
+		os.Exit(1)
+	}
+
+	err = cmd.Wait() // Wait for the command to finish
+	if err != nil {
+		fmt.Printf("Command finished with error: %s\n", err)
+		os.Exit(1)
+	}
+
+	fmt.Println("Document sent to the " + pdfType)
 }
 
 func (doc *IdDocument) BuildSign() (*string, error) {
@@ -150,15 +197,24 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 		fmt.Println("Error getting executable path:", err)
 	}
 
-	//err = os.RemoveAll("tmp.pdf")
-	//if err != nil {
-	//	return nil, err
-	//}
+	//PrintPDF("tmp.pdf", "Parlament")
+	//PrintPDF("tmp.pdf", "Parlament X2")
 
 	return dest, nil
 }
 
-func (doc *IdDocument) BuildPdf() ([]byte, string, error) {
+func (doc *IdDocument) BuildPdf() (retErr error) {
+	defer func() {
+		if r := recover(); r != nil {
+			switch x := r.(type) {
+			case error:
+				retErr = x
+			default:
+				retErr = errors.New("unknown panic")
+			}
+		}
+	}()
+
 	pdf := gopdf.GoPdf{}
 	pdf.Start(gopdf.Config{PageSize: *gopdf.PageSizeA4})
 
@@ -166,36 +222,190 @@ func (doc *IdDocument) BuildPdf() ([]byte, string, error) {
 
 	err := pdf.AddTTFFontData("liberationsans", font)
 	if err != nil {
-		return nil, "", fmt.Errorf("loading font: %w", err)
+		panic(fmt.Errorf("loading font: %w", err))
 	}
 
 	err = pdf.SetFont("liberationsans", "", 13.5)
 	if err != nil {
-		return nil, "", fmt.Errorf("setting font: %w", err)
+		panic(fmt.Errorf("setting font: %w", err))
 	}
 
-	// Color the page
-	pdf.SetLineWidth(0.1)
-	pdf.SetFillColor(124, 252, 0) //setup fill color
-	pdf.RectFromUpperLeftWithStyle(50, 100, 400, 600, "FD")
+	const leftMargin = 58.8
+	const rightMargin = 535
+	const textLeftMargin = 67.3
+
+	line := func(width float64) {
+		if width > 0 {
+			pdf.SetLineWidth(width)
+		}
+
+		y := pdf.GetY()
+		pdf.Line(leftMargin, y, rightMargin, y)
+	}
+
+	moveY := func(y float64) {
+		pdf.SetXY(pdf.GetX(), pdf.GetY()+y)
+	}
+
+	cell := func(s string) {
+		err := pdf.Cell(nil, s)
+		if err != nil {
+			panic(fmt.Errorf("putting text: %w", err))
+		}
+	}
+
+	putData := func(label, data string) {
+		y := pdf.GetY()
+
+		pdf.SetX(textLeftMargin)
+		texts, err := pdf.SplitTextWithWordWrap(label, 120)
+		if err != nil {
+			panic(err)
+		}
+
+		for i, text := range texts {
+			cell(text)
+			if i < len(texts)-1 {
+				pdf.SetXY(textLeftMargin, pdf.GetY()+12)
+			}
+		}
+
+		y1 := pdf.GetY()
+
+		pdf.SetXY(textLeftMargin+128, y)
+		texts, err = pdf.SplitTextWithWordWrap(data, 350)
+		if err != nil {
+			panic(err)
+		}
+
+		for i, text := range texts {
+			cell(text)
+			if i < len(texts)-1 {
+				pdf.SetXY(textLeftMargin+128, pdf.GetY()+12)
+			}
+		}
+
+		y2 := pdf.GetY()
+
+		pdf.SetXY(textLeftMargin, math.Max(y1, y2)+24.67)
+	}
+
+	pdf.SetLineType("solid")
+	pdf.SetY(59.041)
+	line(0.83)
+
+	pdf.SetXY(textLeftMargin+1.0, 68.5)
+	err = pdf.SetCharSpacing(-0.2)
+	if err != nil {
+		panic(err)
+	}
+	cell("ČITAČ ELEKTRONSKE LIČNE KARTE: ŠTAMPA PODATAKA")
+
+	err = pdf.SetCharSpacing(-0.1)
+	if err != nil {
+		panic(err)
+	}
+
+	pdf.SetY(88)
+	line(0)
+
+	err = pdf.ImageFrom(doc.Portrait, leftMargin, 102.8, &gopdf.Rect{W: 119.9, H: 159})
+	if err != nil {
+		panic(err)
+	}
+
+	pdf.SetLineWidth(0.48)
+	pdf.SetFillColor(255, 255, 255)
+	err = pdf.Rectangle(leftMargin, 102.8, 179, 262, "D", 0, 0)
+	if err != nil {
+		panic(err)
+	}
+
 	pdf.SetFillColor(0, 0, 0)
 
-	pdf.SetXY(50, 50)
+	pdf.SetY(276)
+	line(1.08)
+	moveY(8)
+	pdf.SetXY(textLeftMargin, 284)
+	err = pdf.SetFontSize(11.1)
+	if err != nil {
+		panic(err)
+	}
+	cell("Podaci o građaninu")
+	moveY(16)
+	line(0)
+	moveY(9)
 
-	// Import page 1
-	tpl1 := pdf.ImportPage("templates/form-01.pdf", 1, "/MediaBox")
-	pdf.SetLineType("solid")
-	// Draw pdf onto page
-	pdf.UseImportedTemplate(tpl1, 50, 100, 400, 0)
+	fmt.Println(doc.GivenName)
+	putData("Prezime:", doc.Surname)
+	putData("Ime:", doc.GivenName)
+	putData("Ime jednog roditelja:", doc.ParentGivenName)
+	putData("Datum rođenja:", doc.DateOfBirth)
+	putData("Mesto rođenja, opština i država:", doc.formatPlaceOfBirth())
+	putData("Prebivalište:", doc.formatAddress())
+	putData("Datum promene adrese:", doc.AddressDate)
+	putData("JMBG:", doc.PersonalNumber)
+	putData("Pol:", doc.Sex)
 
-	fileName := strings.ToLower(doc.GivenName + "_" + doc.Surname + ".pdf")
+	moveY(-8.67)
+	line(0)
+	moveY(9)
+	cell("Podaci o dokumentu")
+	moveY(16)
+
+	line(0)
+	moveY(9)
+	putData("Dokument izdaje:", doc.IssuingAuthority)
+	putData("Broj dokumenta:", doc.DocumentNumber)
+	putData("Datum izdavanja:", doc.IssuingDate)
+	putData("Važi do:", doc.ExpiryDate)
+
+	moveY(-8.67)
+	line(0)
+	moveY(3)
+	line(0)
+	moveY(9)
+
+	cell("Datum štampe: " + time.Now().Format("02.01.2006."))
+
+	pdf.SetY(730.6)
+	line(0.83)
+
+	err = pdf.SetFontSize(9)
+	if err != nil {
+		panic(err)
+	}
+
+	pdf.SetXY(leftMargin, 739.7)
+	cell("1. U čipu lične karte, podaci o imenu i prezimenu imaoca lične karte ispisani su na nacionalnom pismu onako kako su")
+	pdf.SetXY(leftMargin, 749.9)
+	cell("ispisani na samom obrascu lične karte, dok su ostali podaci ispisani latiničkim pismom.")
+	pdf.SetXY(leftMargin, 759.7)
+	cell("2. Ako se ime lica sastoji od dve reči čija je ukupna dužina između 20 i 30 karaktera ili prezimena od dve reči čija je")
+	pdf.SetXY(leftMargin, 769.4)
+	cell("ukupna dužina između 30 i 36 karaktera, u čipu lične karte izdate pre 18.08.2014. godine, druga reč u imenu ili prezimenu")
+	pdf.SetXY(leftMargin, 779.1)
+	cell("skraćuje se na prva dva karaktera")
+
+	pdf.SetY(794.5)
+	line(0)
+
+	//fileName = strings.ToLower(doc.GivenName + "_" + doc.Surname + ".pdf")
 
 	pdf.SetInfo(gopdf.PdfInfo{
 		Title:        doc.GivenName + " " + doc.Surname,
-		Author:       "Čitač",
+		Author:       "Baš Čelik",
 		Subject:      "Lična karta",
 		CreationDate: time.Now(),
 	})
 
-	return pdf.GetBytesPdf(), fileName, nil
+	err = os.WriteFile("id.pdf", pdf.GetBytesPdf(), 0666)
+	if err != nil {
+		fmt.Printf("Failed to write PDF to file: %s\n", err)
+		os.Exit(1)
+	}
+
+	//PrintPDF("id.pdf", "licna karata")
+
+	return nil
 }

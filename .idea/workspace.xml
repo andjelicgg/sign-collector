@@ -5,11 +5,39 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="f2875548-6697-49e2-8f08-7bb8c34a9bc1" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/print_doc.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/print_document.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/vcs.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/print_doc" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/FyneApp.toml" beforeDir="false" afterPath="$PROJECT_DIR$/FyneApp.toml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/assets/application.desktop" beforeDir="false" afterPath="$PROJECT_DIR$/assets/application.desktop" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/Analysis-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/EXE-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/PKG-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/PYZ-00.pyz" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/PYZ-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/base_library.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/print_doc.pkg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/warn-print_doc.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_doc/xref-print_doc.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/Analysis-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/EXE-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/PKG-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/PYZ-00.pyz" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/PYZ-00.toc" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/base_library.zip" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/print_document.pkg" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/warn-print_document.txt" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/build/print_document/xref-print_document.html" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/card/apollo.go" beforeDir="false" afterPath="$PROJECT_DIR$/card/apollo.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/card/card.go" beforeDir="false" afterPath="$PROJECT_DIR$/card/card.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/card/gemalto.go" beforeDir="false" afterPath="$PROJECT_DIR$/card/gemalto.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/card/idCard.go" beforeDir="false" afterPath="$PROJECT_DIR$/card/idCard.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/document/document.go" beforeDir="false" afterPath="$PROJECT_DIR$/document/document.go" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/document/id.go" beforeDir="false" afterPath="$PROJECT_DIR$/document/id.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.mod" beforeDir="false" afterPath="$PROJECT_DIR$/go.mod" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/go.sum" beforeDir="false" afterPath="$PROJECT_DIR$/go.sum" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui/pooler.go" beforeDir="false" afterPath="$PROJECT_DIR$/gui/pooler.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/gui/ui.go" beforeDir="false" afterPath="$PROJECT_DIR$/gui/ui.go" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/widgets/startPage.go" beforeDir="false" afterPath="$PROJECT_DIR$/widgets/startPage.go" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -54,7 +82,7 @@
     "git-widget-placeholder": "main",
     "go.import.settings.migrated": "true",
     "go.sdk.automatically.set": "true",
-    "last_opened_file_path": "/Users/alex/Documents/bas-celik/dist",
+    "last_opened_file_path": "/Users/alex/Documents/bas-celik",
     "node.js.detected.package.eslint": "true",
     "node.js.selected.package.eslint": "(autodetect)",
     "nodejs_package_manager_path": "npm",
@@ -63,8 +91,9 @@
 }]]></component>
   <component name="RecentsManager">
     <key name="CopyFile.RECENT_KEYS">
-      <recent name="$PROJECT_DIR$/dist" />
       <recent name="$PROJECT_DIR$" />
+      <recent name="$PROJECT_DIR$/dist/templates" />
+      <recent name="$PROJECT_DIR$/dist" />
       <recent name="$PROJECT_DIR$/templates" />
     </key>
     <key name="MoveFile.RECENT_KEYS">

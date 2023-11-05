@@ -10,9 +10,9 @@ import (
 )
 
 type Document interface {
-	BuildPdf() ([]byte, string, error)
+	BuildPdf() error
 	BuildSign() (*string, error)
-	BuildUI(func(), *widgets.StatusBar) *fyne.Container
+	BuildUI(*widgets.StatusBar, func()) *fyne.Container
 }
 
 var font, rfzoLogo []byte

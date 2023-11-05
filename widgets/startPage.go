@@ -18,6 +18,7 @@ type StartPage struct {
 
 type StartPageRenderer struct {
 	page            *StartPage
+	manualInput     *fyne.Container
 	statusText      *canvas.Text
 	explanationText *canvas.Text
 	container       *fyne.Container

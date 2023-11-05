@@ -20,19 +20,29 @@ var GEMALTO_ATR_2 = []byte{
 	0x4E, 0x33, 0x5E,
 }
 
+var GEMALTO_ATR_3 = []byte{
+	0x3B, 0x9E, 0x96, 0x80, 0x31, 0xFE, 0x45, 0x53,
+	0x43, 0x45, 0x20, 0x38, 0x2E, 0x30, 0x2D, 0x43,
+	0x31, 0x56, 0x30, 0x0D, 0x0A, 0x6F,
+}
+
 type Gemalto struct {
 	smartCard *scard.Card
 }
 
-func (card Gemalto) selectFiles() bool {
+func (card Gemalto) initCard() error {
 	data := []byte{0xF3, 0x81, 0x00, 0x00, 0x02, 0x53, 0x45, 0x52, 0x49, 0x44, 0x01}
-	apu, _ := buildAPDU(0x00, 0xA4, 0x04, 0x00, data, 0)
+	apu := buildAPDU(0x00, 0xA4, 0x04, 0x00, data, 0)
 	rsp, err := card.smartCard.Transmit(apu)
-	if err != nil || !responseOK(rsp) {
-		return false
+	if err != nil {
+		return fmt.Errorf("initializing card: %w", err)
 	}
 
-	return true
+	if !responseOK(rsp) {
+		return fmt.Errorf("initializing card: response not OK")
+	}
+
+	return nil
 }
 
 func (card Gemalto) readFile(name []byte, trim bool) ([]byte, error) {
@@ -50,7 +60,7 @@ func (card Gemalto) readFile(name []byte, trim bool) ([]byte, error) {
 
 	offset := uint(len(data))
 	if offset < 3 {
-		return nil, fmt.Errorf("invalid file header: %w", err)
+		return nil, fmt.Errorf("file too short")
 	}
 	length := uint(binary.LittleEndian.Uint16(data[2:]))
 
@@ -74,16 +84,21 @@ func (card Gemalto) readFile(name []byte, trim bool) ([]byte, error) {
 }
 
 func (card Gemalto) selectFile(name []byte, ne uint) ([]byte, error) {
-	apu, err := buildAPDU(0x00, 0xA4, 0x08, 0x00, name, ne)
-
-	if err != nil {
-		return nil, fmt.Errorf("selecting file: %w", err)
-	}
-
+	apu := buildAPDU(0x00, 0xA4, 0x08, 0x00, name, ne)
 	rsp, err := card.smartCard.Transmit(apu)
 	if err != nil {
 		return nil, fmt.Errorf("selecting file: %w", err)
 	}
 
 	return rsp, nil
+}
+
+func (card Gemalto) testGemalto() bool {
+	err := card.initCard()
+	if err != nil {
+		return false
+	}
+
+	_, err = card.readFile(DOCUMENT_FILE_LOC, false)
+	return err == nil
 }

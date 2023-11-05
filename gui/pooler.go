@@ -38,10 +38,8 @@ func pooler(ctx *scard.Context) {
 				setStartPage("Čitam sa kartice...", "", nil)
 				doc, err := card.ReadCard(sCard)
 				if err != nil {
-					setStartPage(
-						"Greška pri očitavanju kartice",
-						"",
-						fmt.Errorf("reading from card: %w", err))
+					fmt.Printf("reading from card: %w", err)
+					enableManualUI()
 				} else {
 					setStatus("Dokument uspešno pročitan", nil)
 					setUI(doc)
@@ -51,10 +49,11 @@ func pooler(ctx *scard.Context) {
 			sCard.Disconnect(scard.LeaveCard)
 		} else {
 			loaded = false
-			setStartPage(
-				"Greška pri čitanju kartice",
-				"Da li je kartica prisutna?",
-				fmt.Errorf("connecting reader %s: %w", readersNames[0], err))
+			enableManualUI()
+			//setStartPage(
+			//	"Greška pri čitanju kartice",
+			//	"Da li je kartica prisutna?",
+			//	fmt.Errorf("connecting reader %s: %w", readersNames[0], err))
 		}
 
 		time.Sleep(500 * time.Millisecond)

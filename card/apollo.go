@@ -30,7 +30,7 @@ func (card Apollo) readFile(name []byte, trim bool) ([]byte, error) {
 	}
 
 	if len(data) < 5 {
-		return nil, fmt.Errorf("invalid file header: %w", err)
+		return nil, fmt.Errorf("file too short")
 	}
 	length := uint(binary.LittleEndian.Uint16(data[4:]))
 	offset := uint(6)
@@ -56,12 +56,7 @@ func (card Apollo) readFile(name []byte, trim bool) ([]byte, error) {
 }
 
 func (card Apollo) selectFile(name []byte, ne uint) ([]byte, error) {
-	apu, err := buildAPDU(0x00, 0xA4, 0x08, 0x00, name, ne)
-
-	if err != nil {
-		return nil, fmt.Errorf("selecting file: %w", err)
-	}
-
+	apu := buildAPDU(0x00, 0xA4, 0x08, 0x00, name, ne)
 	rsp, err := card.smartCard.Transmit(apu)
 	if err != nil {
 		return nil, fmt.Errorf("selecting file: %w", err)
