@@ -2,20 +2,16 @@ package document
 
 import (
 	"bitbucket.org/inceptionlib/pdfinject-go"
-	"bytes"
 	"fmt"
 	"fyne.io/fyne/v2"
 	"fyne.io/fyne/v2/canvas"
 	"fyne.io/fyne/v2/container"
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
-	"github.com/jadefox10200/goprint"
 	"github.com/signintech/gopdf"
 	"github.com/ubavic/bas-celik/widgets"
 	"image"
-	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -121,60 +117,6 @@ func (doc IdDocument) BuildUI(pdfHandler func(), statusBar *widgets.StatusBar) *
 	return container.New(layout.NewVBoxLayout(), cols, buttonBar)
 }
 
-type ShellCommand struct {
-	cmdName string
-}
-
-func NewShellCommand(name string) ShellCommand {
-	return ShellCommand{
-		name,
-	}
-}
-
-func (s *ShellCommand) RunInPath(dir string, args ...string) error {
-	// Create the command.
-	var stderr bytes.Buffer
-	cmd := exec.Command(s.cmdName, args...)
-	cmd.Stderr = &stderr
-	cmd.Dir = dir
-
-	// Start the command and wait for it to exit.
-	err := cmd.Run()
-	if err != nil {
-		return fmt.Errorf(strings.TrimSpace(stderr.String()))
-	}
-
-	return nil
-}
-
-func checkPkgExist(pkgName string) error {
-	_, err := exec.LookPath(pkgName)
-	if err != nil {
-		return fmt.Errorf("%s utility is not installed!", pkgName)
-	}
-	return nil
-}
-
-func printPDF(destPath *string) {
-
-	printerName, _ := goprint.GetDefaultPrinterName()
-
-	//open the printer
-	printerHandle, err := goprint.GoOpenPrinter(printerName)
-	if err != nil {
-		log.Fatalln("Failed to open printer")
-	}
-	defer goprint.GoClosePrinter(printerHandle)
-
-	filePath := *destPath
-
-	//Send to printer:
-	err = goprint.GoPrint(printerHandle, filePath)
-	if err != nil {
-		log.Fatalln("during the func sendToPrinter, there was an error")
-	}
-}
-
 func (doc *IdDocument) BuildSign() (*string, error) {
 	executable, err := os.Executable() // Gets the path of the current executable.
 	if err != nil {
@@ -207,8 +149,6 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 	if err != nil {
 		fmt.Println("Error getting executable path:", err)
 	}
-
-	printPDF(dest)
 
 	//err = os.RemoveAll("tmp.pdf")
 	//if err != nil {
