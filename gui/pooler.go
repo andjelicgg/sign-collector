@@ -24,12 +24,12 @@ func pooler(ctx *scard.Context) {
 	}
 
 	if len(readersNames) == 0 {
-		enableManualUI()
+		//enableManualUI()
 
-		//setStartPage(
-		//	"Nijedan čitač nije detektovan",
-		//	"Da li je čitač povezan za računar? Ponovo pokrenite aplikaciju nakon povezivanja.",
-		//	fmt.Errorf("no reader found"))
+		setStartPage(
+			"Nijedan čitač nije detektovan",
+			"Da li je čitač povezan za računar? Ponovo pokrenite aplikaciju nakon povezivanja.",
+			fmt.Errorf("no reader found"))
 		return
 	}
 
