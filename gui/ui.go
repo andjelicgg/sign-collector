@@ -15,6 +15,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 )
 
 var statusBar *widgets.StatusBar
@@ -70,9 +71,10 @@ func formatName(firstName string, lastName string, middleName string) string {
 	var st strings.Builder
 
 	st.WriteString(firstName)
-	st.WriteString(" ")
 	if len(middleName) > 0 {
 		st.WriteString(", " + middleName + ", ")
+	} else {
+		st.WriteString(" ")
 	}
 	st.WriteString(lastName)
 
@@ -188,6 +190,7 @@ func enableManualUI() {
 		LoadCard()
 	})
 
+	// Manual print Parlament
 	submitButton := widget.NewButton("Štampaj", func() {
 		executable, err := os.Executable() // Gets the path of the current executable.
 		if err != nil {
@@ -195,6 +198,7 @@ func enableManualUI() {
 		}
 
 		fullName := formatName(givenName.Text, givenSurname.Text, parentGivenName.Text)
+		currentTime := time.Now()
 
 		form := map[string]interface{}{
 			"field_fullName":                   fullName,
@@ -209,7 +213,7 @@ func enableManualUI() {
 			"field_workingPlace":               authorizedCertifierAddress.Text,
 			"field_documentRegistryNo":         "",
 			"field_location":                   place.Text,
-			"field_date":                       "17.10",
+			"field_date":                       currentTime.Format("02.01"),
 		}
 
 		execPath := filepath.Dir(executable) // Finds the directory of the executable.
@@ -229,25 +233,9 @@ func enableManualUI() {
 		}
 		helper.PrintPDF("tmp.pdf", "Parlament")
 		helper.PrintPDF("tmp.pdf", "Parlament X2")
-
-		execPath = filepath.Dir(executable) // Finds the directory of the executable.
-		formPath = filepath.Join(execPath, "templates/form-02.pdf")
-
-		err = helper.AppendCSV(form, "beograd")
-		if err != nil {
-			fmt.Println("Error getting executable path:", err)
-			SetStatus("Greska prilikom dodavanja", err)
-			return
-		}
-
-		pdfInject = pdfinject.New()
-		_, err = pdfInject.FillWithDestFile(form, formPath, "tmp-02.pdf")
-		if err != nil {
-			fmt.Println("Error getting executable path:", err)
-		}
-		helper.PrintPDF("tmp-02.pdf", "Beograd")
 	})
 
+	// Manual print Local
 	submitLocal := widget.NewButton("Štampaj BG", func() {
 		executable, err := os.Executable() // Gets the path of the current executable.
 		if err != nil {
@@ -255,6 +243,7 @@ func enableManualUI() {
 		}
 
 		fullName := formatName(givenName.Text, givenSurname.Text, parentGivenName.Text)
+		currentTime := time.Now()
 
 		form := map[string]interface{}{
 			"field_fullName":                   fullName,
@@ -269,7 +258,7 @@ func enableManualUI() {
 			"field_workingPlace":               authorizedCertifierAddress.Text,
 			"field_documentRegistryNo":         "",
 			"field_location":                   place.Text,
-			"field_date":                       "17.10",
+			"field_date":                       currentTime.Format("02.01"),
 		}
 
 		execPath := filepath.Dir(executable) // Finds the directory of the executable.

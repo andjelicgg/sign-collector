@@ -203,7 +203,7 @@ func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func(
 			time.Sleep(10 * time.Second) // Simulate a long-running task
 
 			progress.Hide()
-			saveButton.SetText("Štampaj BG")
+			saveButtonLocal.SetText("Štampaj BG")
 			enableManualInput.Enable()
 			saveButtonLocal.Enable()
 			saveButton.Enable()
