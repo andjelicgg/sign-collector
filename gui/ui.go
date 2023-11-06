@@ -60,6 +60,57 @@ func formatName(firstName string, lastName string, middleName string) string {
 	return st.String()
 }
 
+// CustomSpacer creates a spacer with a fixed size.
+type CustomSpacer struct {
+	widget.BaseWidget
+	size fyne.Size
+}
+
+// NewCustomSpacer creates a new spacer with the given width and height.
+func NewCustomSpacer(width, height float32) *CustomSpacer {
+	s := &CustomSpacer{size: fyne.NewSize(width, height)}
+	s.ExtendBaseWidget(s)
+	return s
+}
+
+// MinSize returns the minimum size of the spacer, effectively making it a fixed size.
+func (s *CustomSpacer) MinSize() fyne.Size {
+	return s.size
+}
+
+// CreateRenderer is a private method to Fyne which links this widget to its renderer.
+func (s *CustomSpacer) CreateRenderer() fyne.WidgetRenderer {
+	return &customSpacerRenderer{spacer: s}
+}
+
+type customSpacerRenderer struct {
+	spacer *CustomSpacer
+}
+
+func (r *customSpacerRenderer) MinSize() fyne.Size {
+	return r.spacer.size
+}
+
+func (r *customSpacerRenderer) Layout(_ fyne.Size) {
+	// No layout needed for spacer
+}
+
+func (r *customSpacerRenderer) ApplyTheme() {
+	// No theme needed for spacer
+}
+
+func (r *customSpacerRenderer) Refresh() {
+	// No refresh needed for spacer
+}
+
+func (r *customSpacerRenderer) Objects() []fyne.CanvasObject {
+	return nil
+}
+
+func (r *customSpacerRenderer) Destroy() {
+	// No destroy actions needed for spacer
+}
+
 func enableManualUI() {
 	givenName := widget.NewEntry()
 	givenName.SetPlaceHolder("Ime")
@@ -170,7 +221,27 @@ func enableManualUI() {
 		readCardButton,
 	)
 
-	(*window).SetContent(form)
+	// Use the standard spacer for flexible space
+	flexSpacer := layout.NewSpacer()
+
+	// Use the custom spacer for fixed space
+	fixedSpacer := NewCustomSpacer(20, 20)
+
+	// Create a container with padding around the content
+	paddedContainer := container.New(
+		layout.NewBorderLayout(fixedSpacer, fixedSpacer, fixedSpacer, fixedSpacer),
+		fixedSpacer, // top
+		fixedSpacer, // bottom
+		fixedSpacer, // left
+		fixedSpacer, // right
+		form,
+		flexSpacer, // Use the flexible spacer to push content to the center
+	)
+
+	minWidth := float32(200)  // Minimum width in pixels
+	minHeight := float32(100) // Minimum height in pixels, adjust as needed
+	(*window).Resize(fyne.NewSize(minWidth, minHeight))
+	(*window).SetContent(paddedContainer)
 
 	startPageOn = false
 }
