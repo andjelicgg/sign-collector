@@ -13,9 +13,9 @@ var statusBar *widgets.StatusBar
 
 type Form map[string]interface{}
 
-func AppendCSV(form Form) error {
+func AppendCSV(form Form, elType string) error {
 	// Ensure the 'data' directory exists
-	dataDir := "data"
+	dataDir := "data-" + elType
 	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
 		return fmt.Errorf("error creating directory: %v", err)
 	}

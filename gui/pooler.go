@@ -2,19 +2,18 @@ package gui
 
 import (
 	"fmt"
-	"time"
-
 	"github.com/ebfe/scard"
 	"github.com/ubavic/bas-celik/card"
 )
 
-func pooler(ctx *scard.Context) {
+func Pooler(ctx *scard.Context) {
 	loaded := false
 
 	setStartPage("Konekcija sa čitačem...", "", nil)
 
 	readersNames, err := ctx.ListReaders()
 	if err != nil {
+		fmt.Println(err)
 		loaded = false
 		setStartPage(
 			"Greška pri povezivanju sa čitačem",
@@ -24,8 +23,6 @@ func pooler(ctx *scard.Context) {
 	}
 
 	if len(readersNames) == 0 {
-		//enableManualUI()
-
 		setStartPage(
 			"Nijedan čitač nije detektovan",
 			"Da li je čitač povezan za računar? Ponovo pokrenite aplikaciju nakon povezivanja.",
@@ -33,31 +30,24 @@ func pooler(ctx *scard.Context) {
 		return
 	}
 
-	for {
-		sCard, err := ctx.Connect(readersNames[0], scard.ShareShared, scard.ProtocolAny)
-		if err == nil {
-			if !loaded {
-				setStartPage("Čitam sa kartice...", "", nil)
-				doc, err := card.ReadCard(sCard)
-				if err != nil {
-					fmt.Printf("reading from card: %w", err)
-					enableManualUI()
-				} else {
-					SetStatus("Dokument uspešno pročitan", nil)
-					setUI(doc)
-					loaded = true
-				}
+	sCard, err := ctx.Connect(readersNames[0], scard.ShareShared, scard.ProtocolAny)
+	if err == nil {
+		if !loaded {
+			setStartPage("Čitam sa kartice...", "", nil)
+			doc, err := card.ReadCard(sCard)
+			if err != nil {
+				fmt.Printf("reading from card: %w", err)
+			} else {
+				SetStatus("Dokument uspešno pročitan", nil)
+				setUI(doc)
+				loaded = true
 			}
-			sCard.Disconnect(scard.LeaveCard)
-		} else {
-			loaded = false
-			enableManualUI()
-			//setStartPage(
-			//	"Greška pri čitanju kartice",
-			//	"Da li je kartica prisutna?",
-			//	fmt.Errorf("connecting reader %s: %w", readersNames[0], err))
 		}
-
-		time.Sleep(500 * time.Millisecond)
+		sCard.Disconnect(scard.LeaveCard)
+	} else {
+		setStartPage(
+			"Greška pri čitanju kartice",
+			"Da li je kartica prisutna?",
+			fmt.Errorf("connecting reader %s: %w", readersNames[0], err))
 	}
 }

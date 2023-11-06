@@ -3,6 +3,7 @@ package document
 import (
 	"embed"
 	"fmt"
+	"fyne.io/fyne/v2/widget"
 	"strings"
 
 	"fyne.io/fyne/v2"
@@ -12,7 +13,7 @@ import (
 type Document interface {
 	BuildPdf() error
 	BuildSign() (*string, error)
-	BuildUI(*widgets.StatusBar, func()) *fyne.Container
+	BuildUI(*widgets.StatusBar, func(), *widget.Button) *fyne.Container
 }
 
 var font, rfzoLogo []byte

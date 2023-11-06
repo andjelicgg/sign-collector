@@ -17,6 +17,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -49,10 +50,11 @@ type IdDocument struct {
 	AddressFloor           string
 	AddressApartmentNumber string
 	AddressDate            string
+	Location               string
 }
 
 func (doc *IdDocument) formatName() string {
-	return doc.GivenName + ", " + doc.ParentGivenName + ", " + doc.Surname
+	return doc.GivenName + " " + doc.Surname
 }
 
 func (doc *IdDocument) formatAddress() string {
@@ -95,19 +97,27 @@ func savePdf(doc *IdDocument) func() {
 	return func() {
 		err := doc.BuildPdf()
 		if err != nil {
-			//setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
+			fmt.Printf("generating PDF: %w", err)
 			return
 		}
 
-		//_, err = doc.BuildSign()
-		//if err != nil {
-		//	//setStatus("Greška pri generisanju PDF-a", fmt.Errorf("generating PDF: %w", err))
-		//	return
-		//}
+		_, err = doc.BuildSign()
+		if err != nil {
+			return
+		}
 	}
 }
 
-func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func()) *fyne.Container {
+func savePdfLocal(doc *IdDocument) func() {
+	return func() {
+		_, err := doc.BuildSignLocal()
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func(), reloadCard *widget.Button) *fyne.Container {
 	nameF := widgets.NewField("Ime", doc.GivenName, 100)
 	parentF := widgets.NewField("Ime roditelja", doc.ParentGivenName, 100)
 	surnameF := widgets.NewField("Prezime roditelja", doc.Surname, 100)
@@ -136,12 +146,76 @@ func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func(
 	cols := container.New(layout.NewHBoxLayout(), colLeft, colRight)
 
 	pdfHandler := savePdf(&doc)
+	pdfHandlerLocal := savePdfLocal(&doc)
 
-	saveButton := widget.NewButton("Štampaj", pdfHandler)
-	enableManualInput := widget.NewButton("Rucni unso", func() {
+	progress := widget.NewProgressBarInfinite()
+	progress.Hide()
+
+	var isLoading int32
+
+	var saveButton *widget.Button
+	var saveButtonLocal *widget.Button
+
+	enableManualInput := widget.NewButton("Unesi ručno", func() {
 		enableManualUI()
 	})
-	buttonBar := container.New(layout.NewHBoxLayout(), statusBar, layout.NewSpacer(), saveButton, enableManualInput)
+
+	buttonAction := func() {
+		if atomic.LoadInt32(&isLoading) == 1 {
+			fmt.Println("Already loading")
+			return
+		}
+		atomic.StoreInt32(&isLoading, 1)
+		progress.Show()
+		saveButton.SetText("Štampanje...")
+		saveButton.Disable()
+		reloadCard.Disable()
+		enableManualInput.Disable()
+
+		go func() {
+			pdfHandler()
+			time.Sleep(10 * time.Second) // Simulate a long-running task
+
+			progress.Hide()
+			saveButton.SetText("Štampaj")
+			enableManualInput.Enable()
+			saveButton.Enable()
+			reloadCard.Enable()
+			atomic.StoreInt32(&isLoading, 0)
+		}()
+	}
+
+	buttonActionLocal := func() {
+		if atomic.LoadInt32(&isLoading) == 1 {
+			fmt.Println("Already loading")
+			return
+		}
+		atomic.StoreInt32(&isLoading, 1)
+		progress.Show()
+		saveButtonLocal.SetText("Štampanje...")
+		saveButtonLocal.Disable()
+		saveButton.Disable()
+		reloadCard.Disable()
+		enableManualInput.Disable()
+
+		go func() {
+			pdfHandlerLocal()
+			time.Sleep(10 * time.Second) // Simulate a long-running task
+
+			progress.Hide()
+			saveButton.SetText("Štampaj BG")
+			enableManualInput.Enable()
+			saveButtonLocal.Enable()
+			saveButton.Enable()
+			reloadCard.Enable()
+			atomic.StoreInt32(&isLoading, 0)
+		}()
+	}
+
+	saveButton = widget.NewButton("Štampaj", buttonAction)
+	saveButtonLocal = widget.NewButton("Štampaj BG", buttonActionLocal)
+
+	buttonBar := container.New(layout.NewHBoxLayout(), statusBar, layout.NewSpacer(), saveButton, saveButtonLocal, enableManualInput, reloadCard)
 
 	return container.New(layout.NewVBoxLayout(), cols, buttonBar)
 }
@@ -152,9 +226,9 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 		fmt.Println("Error getting executable path:", err)
 	}
 
+	currentTime := time.Now()
+
 	form := map[string]interface{}{
-		"field_politicalPartyName":         "Dosta je bilo, Suverensiti",
-		"field_applicant":                  "Dosta je bilo, Suverensiti",
 		"field_fullName":                   doc.formatName(),
 		"field_personalNumber":             doc.PersonalNumber,
 		"field_place":                      doc.Place,
@@ -163,17 +237,17 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 		"field_dateOfBirth":                doc.DateOfBirth,
 		"field_placeStreetWithHouseNumber": doc.Place,
 		"field_documentInfo":               doc.IssuingAuthority + ", " + doc.IssuingDate + ", " + doc.DocumentNumber,
-		"field_authorizedCertifier":        doc.IssuingAuthority,
-		"field_workingPlace":               doc.Place,
+		"field_authorizedCertifier":        "",
+		"field_workingPlace":               "",
 		"field_documentRegistryNo":         "",
-		"field_location":                   "Beograd",
-		"field_date":                       "17.10",
+		"field_location":                   "",
+		"field_date":                       currentTime.Format("02.01"),
 	}
 
-	execPath := filepath.Dir(executable) // Finds the directory of the executable.
+	execPath := filepath.Dir(executable)
 	formPath := filepath.Join(execPath, "templates/form-01.pdf")
 
-	err = helper.AppendCSV(form)
+	err = helper.AppendCSV(form, "parlament")
 	if err != nil {
 		fmt.Println("Error getting executable path:", err)
 		return nil, err
@@ -185,9 +259,53 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 		fmt.Println("Error getting executable path:", err)
 	}
 
-	//helper.PrintPDF("tmp.pdf", "Parlament")
-	//helper.PrintPDF("tmp.pdf", "Parlament X2")
+	helper.PrintPDF("tmp.pdf", "Parlament")
+	helper.PrintPDF("tmp.pdf", "Parlament X2")
 
+	return dest, nil
+}
+
+func (doc *IdDocument) BuildSignLocal() (*string, error) {
+	executable, err := os.Executable() // Gets the path of the current executable.
+	if err != nil {
+		fmt.Println("Error getting executable path:", err)
+	}
+
+	currentTime := time.Now()
+
+	form := map[string]interface{}{
+		"field_fullName":                   doc.formatName(),
+		"field_personalNumber":             doc.PersonalNumber,
+		"field_place":                      doc.Place,
+		"field_streetHouseNumber":          doc.formatAddress(),
+		"field_firstLastName":              doc.formatName(),
+		"field_dateOfBirth":                doc.DateOfBirth,
+		"field_placeStreetWithHouseNumber": doc.Place,
+		"field_documentInfo":               doc.IssuingAuthority + ", " + doc.IssuingDate + ", " + doc.DocumentNumber,
+		"field_authorizedCertifier":        "",
+		"field_workingPlace":               "",
+		"field_documentRegistryNo":         "",
+		"field_location":                   "",
+		"field_date":                       currentTime.Format("02.01"),
+	}
+
+	execPath := filepath.Dir(executable)
+	formPath := filepath.Join(execPath, "templates/form-02.pdf")
+
+	err = helper.AppendCSV(form, "beograd")
+	if err != nil {
+		fmt.Println("Error getting executable path:", err)
+		return nil, err
+	}
+
+	pdfInject := pdfinject.New()
+	dest, err := pdfInject.FillWithDestFile(form, formPath, "tmp-02.pdf")
+	if err != nil {
+		fmt.Println("Error getting executable path:", err)
+	}
+
+	helper.PrintPDF("tmp-02.pdf", "BG")
+	helper.PrintPDF("tmp-02.pdf", "BG X2")
 	return dest, nil
 }
 
@@ -210,6 +328,7 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 
 	err := pdf.AddTTFFontData("liberationsans", font)
 	if err != nil {
+		fmt.Printf("loading font: %w", err)
 		panic(fmt.Errorf("loading font: %w", err))
 	}
 
@@ -301,7 +420,6 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 	if err != nil {
 		panic(err)
 	}
-
 	pdf.SetLineWidth(0.48)
 	pdf.SetFillColor(255, 255, 255)
 	err = pdf.Rectangle(leftMargin, 102.8, 179, 262, "D", 0, 0)
@@ -324,7 +442,6 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 	line(0)
 	moveY(9)
 
-	fmt.Println(doc.GivenName)
 	putData("Prezime:", doc.Surname)
 	putData("Ime:", doc.GivenName)
 	putData("Ime jednog roditelja:", doc.ParentGivenName)
@@ -378,8 +495,6 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 	pdf.SetY(794.5)
 	line(0)
 
-	//fileName = strings.ToLower(doc.GivenName + "_" + doc.Surname + ".pdf")
-
 	pdf.SetInfo(gopdf.PdfInfo{
 		Title:        doc.GivenName + " " + doc.Surname,
 		Author:       "Baš Čelik",
@@ -393,7 +508,7 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 		os.Exit(1)
 	}
 
-	//helper.PrintPDF("id.pdf", "licna karata")
+	helper.PrintPDF("id.pdf", "licna karata")
 
 	return nil
 }

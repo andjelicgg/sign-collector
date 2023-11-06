@@ -23,27 +23,46 @@ var verbose bool
 var startPageOn bool // possible data races
 var startPage *widgets.StartPage
 
-func StartGui(ctx *scard.Context, verbose bool) {
+func StartGui() {
 	startPageOn = true
 
 	appW := app.New()
 	win := appW.NewWindow("DJB Potpisi")
 	window = &win
-	go pooler(ctx)
 
 	appW.Settings().SetTheme(MyTheme{})
 
 	statusBar = widgets.NewStatusBar()
 
 	startPage = widgets.NewStartPage()
+	test := widget.NewButton("Unesi ručno", func() {
+		enableManualUI()
+	})
+
+	var loadCardButton *widget.Button
+	loadCardButton = widget.NewButton("Učitaj karticu", func() {
+		loadCardButton.Disable()
+		test.Disable()
+		loadCardButton.SetText("Učitavanje..")
+		LoadCard()
+	})
+
 	startPage.SetStatus("", "", false)
+
+	valueText := widget.NewLabelWithStyle("Odaberite opciju", fyne.TextAlignLeading, fyne.TextStyle{Bold: true})
+	valueText.Wrapping = fyne.TextWrapWord
+	valueText.Resize(fyne.NewSize(300, valueText.MinSize().Height))
 
 	win.SetContent(
 		container.New(
-			layout.NewPaddedLayout(),
-			startPage,
+			layout.NewVBoxLayout(),
+			valueText,
+			test,
+			loadCardButton,
 		),
 	)
+	win.Resize(fyne.NewSize(740, 400))
+
 	win.ShowAndRun()
 }
 
@@ -111,6 +130,17 @@ func (r *customSpacerRenderer) Destroy() {
 	// No destroy actions needed for spacer
 }
 
+func LoadCard() {
+	ctx, err := scard.EstablishContext()
+	if err != nil {
+		fmt.Printf("Error establishing context: %s", err)
+		return
+	}
+
+	defer ctx.Release()
+	Pooler(ctx)
+}
+
 func enableManualUI() {
 	givenName := widget.NewEntry()
 	givenName.SetPlaceHolder("Ime")
@@ -154,10 +184,11 @@ func enableManualUI() {
 	place := widget.NewEntry()
 	place.SetPlaceHolder("Lokacija")
 
-	readCardButton := widget.NewButton("Procitaj karticu", func() {
-		setStartPage("Čitam sa kartice...", "", nil)
+	readCardButton := widget.NewButton("Učitaj karticu", func() {
+		LoadCard()
 	})
-	submitButton := widget.NewButton("Submit", func() {
+
+	submitButton := widget.NewButton("Štampaj", func() {
 		executable, err := os.Executable() // Gets the path of the current executable.
 		if err != nil {
 			fmt.Println("Error getting executable path:", err)
@@ -166,8 +197,6 @@ func enableManualUI() {
 		fullName := formatName(givenName.Text, givenSurname.Text, parentGivenName.Text)
 
 		form := map[string]interface{}{
-			"field_politicalPartyName":         "Dosta je bilo, Suverensiti",
-			"field_applicant":                  "Dosta je bilo, Suverensiti",
 			"field_fullName":                   fullName,
 			"field_personalNumber":             personalNumber.Text,
 			"field_place":                      city.Text,
@@ -186,7 +215,7 @@ func enableManualUI() {
 		execPath := filepath.Dir(executable) // Finds the directory of the executable.
 		formPath := filepath.Join(execPath, "templates/form-01.pdf")
 
-		err = helper.AppendCSV(form)
+		err = helper.AppendCSV(form, "parlament")
 		if err != nil {
 			fmt.Println("Error getting executable path:", err)
 			SetStatus("Greska prilikom dodavanja", err)
@@ -199,6 +228,66 @@ func enableManualUI() {
 			fmt.Println("Error getting executable path:", err)
 		}
 		helper.PrintPDF("tmp.pdf", "Parlament")
+		helper.PrintPDF("tmp.pdf", "Parlament X2")
+
+		execPath = filepath.Dir(executable) // Finds the directory of the executable.
+		formPath = filepath.Join(execPath, "templates/form-02.pdf")
+
+		err = helper.AppendCSV(form, "beograd")
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+			SetStatus("Greska prilikom dodavanja", err)
+			return
+		}
+
+		pdfInject = pdfinject.New()
+		_, err = pdfInject.FillWithDestFile(form, formPath, "tmp-02.pdf")
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+		}
+		helper.PrintPDF("tmp-02.pdf", "Beograd")
+	})
+
+	submitLocal := widget.NewButton("Štampaj BG", func() {
+		executable, err := os.Executable() // Gets the path of the current executable.
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+		}
+
+		fullName := formatName(givenName.Text, givenSurname.Text, parentGivenName.Text)
+
+		form := map[string]interface{}{
+			"field_fullName":                   fullName,
+			"field_personalNumber":             personalNumber.Text,
+			"field_place":                      city.Text,
+			"field_streetHouseNumber":          address.Text + " " + addressNo.Text,
+			"field_firstLastName":              fullName,
+			"field_dateOfBirth":                DateOfBirth.Text,
+			"field_placeStreetWithHouseNumber": city.Text + " " + place.Text,
+			"field_documentInfo":               issuingAuthority.Text + ", " + issuingDate.Text + ", " + documentNumber.Text,
+			"field_authorizedCertifier":        authorizedCertifierName.Text,
+			"field_workingPlace":               authorizedCertifierAddress.Text,
+			"field_documentRegistryNo":         "",
+			"field_location":                   place.Text,
+			"field_date":                       "17.10",
+		}
+
+		execPath := filepath.Dir(executable) // Finds the directory of the executable.
+		formPath := filepath.Join(execPath, "templates/form-02.pdf")
+
+		err = helper.AppendCSV(form, "beograd")
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+			SetStatus("Greska prilikom dodavanja", err)
+			return
+		}
+
+		pdfInject := pdfinject.New()
+		_, err = pdfInject.FillWithDestFile(form, formPath, "tmp-02.pdf")
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+		}
+		helper.PrintPDF("tmp-02.pdf", "Beograd")
 	})
 
 	form := container.NewVBox(
@@ -217,37 +306,33 @@ func enableManualUI() {
 			widget.NewFormItem("Dokument izdao", issuingAuthority),
 			widget.NewFormItem("Datum izdavanja", issuingDate),
 		),
-		submitButton,
-		readCardButton,
 	)
 
-	// Use the standard spacer for flexible space
+	buttons := container.New(layout.NewHBoxLayout(), submitButton, submitLocal, readCardButton)
 	flexSpacer := layout.NewSpacer()
+	formWrap := container.New(layout.NewVBoxLayout(), form, buttons, flexSpacer)
 
-	// Use the custom spacer for fixed space
 	fixedSpacer := NewCustomSpacer(20, 20)
-
-	// Create a container with padding around the content
 	paddedContainer := container.New(
 		layout.NewBorderLayout(fixedSpacer, fixedSpacer, fixedSpacer, fixedSpacer),
-		fixedSpacer, // top
-		fixedSpacer, // bottom
-		fixedSpacer, // left
-		fixedSpacer, // right
-		form,
-		flexSpacer, // Use the flexible spacer to push content to the center
+		fixedSpacer,
+		fixedSpacer,
+		fixedSpacer,
+		fixedSpacer,
+		formWrap,
 	)
 
-	minWidth := float32(200)  // Minimum width in pixels
-	minHeight := float32(100) // Minimum height in pixels, adjust as needed
-	(*window).Resize(fyne.NewSize(minWidth, minHeight))
+	(*window).Resize(fyne.NewSize(740, 400))
 	(*window).SetContent(paddedContainer)
 
 	startPageOn = false
 }
 
 func setUI(doc document.Document) {
-	ui := doc.BuildUI(statusBar, enableManualUI)
+	reloadCard := widget.NewButton("Učitaj sledeću karticu", func() {
+		LoadCard()
+	})
+	ui := doc.BuildUI(statusBar, enableManualUI, reloadCard)
 	columns := container.New(layout.NewHBoxLayout(), layout.NewSpacer(), ui, layout.NewSpacer())
 	container := container.New(layout.NewPaddedLayout(), columns)
 	(*window).SetContent(container)
@@ -266,6 +351,18 @@ func setStartPage(status, explanation string, err error) {
 		fmt.Println(err)
 	}
 
+	if len(explanation) > 5 {
+		loadCardButton := widget.NewButton("Učitaj sledeću karticu", func() {
+			LoadCard()
+		})
+
+		explainLabel := widget.NewLabel("Da li je kartica prisutna?")
+
+		container := container.New(layout.NewVBoxLayout(), explainLabel, loadCardButton)
+		(*window).SetContent(container)
+
+		(*window).Resize(fyne.NewSize(740, 400))
+	}
 	startPage.SetStatus(status, explanation, isError)
 	startPage.Refresh()
 
