@@ -10,9 +10,9 @@ import (
 	"fyne.io/fyne/v2/widget"
 	"github.com/ebfe/scard"
 	"github.com/ubavic/bas-celik/document"
+	"github.com/ubavic/bas-celik/helper"
 	"github.com/ubavic/bas-celik/widgets"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -135,12 +135,19 @@ func enableManualUI() {
 		execPath := filepath.Dir(executable) // Finds the directory of the executable.
 		formPath := filepath.Join(execPath, "templates/form-01.pdf")
 
+		err = helper.AppendCSV(form)
+		if err != nil {
+			fmt.Println("Error getting executable path:", err)
+			SetStatus("Greska prilikom dodavanja", err)
+			return
+		}
+
 		pdfInject := pdfinject.New()
 		_, err = pdfInject.FillWithDestFile(form, formPath, "tmp.pdf")
 		if err != nil {
 			fmt.Println("Error getting executable path:", err)
 		}
-		PrintPDF("tmp.pdf", "Parlament")
+		helper.PrintPDF("tmp.pdf", "Parlament")
 	})
 
 	form := container.NewVBox(
@@ -198,7 +205,7 @@ func setStartPage(status, explanation string, err error) {
 
 }
 
-func setStatus(status string, err error) {
+func SetStatus(status string, err error) {
 	isError := false
 	if err != nil {
 		isError = true
@@ -210,22 +217,4 @@ func setStatus(status string, err error) {
 
 	statusBar.SetStatus(status, isError)
 	statusBar.Refresh()
-}
-
-func PrintPDF(file string, pdfType string) {
-	cmd := exec.Command("./print_doc", file)
-
-	err := cmd.Start() // Use Start() instead of Run() if you want non-blocking execution
-	if err != nil {
-		fmt.Printf("Error starting command: %s\n", err)
-		os.Exit(1)
-	}
-
-	err = cmd.Wait() // Wait for the command to finish
-	if err != nil {
-		fmt.Printf("Command finished with error: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("Document sent to the " + pdfType)
 }

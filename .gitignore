@@ -1,4 +1,6 @@
+idea
 *.pdf
+*.csv
 *.json
 bas-celik.*
 *.tar.xz

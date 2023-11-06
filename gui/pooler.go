@@ -24,10 +24,12 @@ func pooler(ctx *scard.Context) {
 	}
 
 	if len(readersNames) == 0 {
-		setStartPage(
-			"Nijedan čitač nije detektovan",
-			"Da li je čitač povezan za računar? Ponovo pokrenite aplikaciju nakon povezivanja.",
-			fmt.Errorf("no reader found"))
+		enableManualUI()
+
+		//setStartPage(
+		//	"Nijedan čitač nije detektovan",
+		//	"Da li je čitač povezan za računar? Ponovo pokrenite aplikaciju nakon povezivanja.",
+		//	fmt.Errorf("no reader found"))
 		return
 	}
 
@@ -41,7 +43,7 @@ func pooler(ctx *scard.Context) {
 					fmt.Printf("reading from card: %w", err)
 					enableManualUI()
 				} else {
-					setStatus("Dokument uspešno pročitan", nil)
+					SetStatus("Dokument uspešno pročitan", nil)
 					setUI(doc)
 					loaded = true
 				}

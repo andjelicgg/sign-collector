@@ -10,11 +10,11 @@ import (
 	"fyne.io/fyne/v2/layout"
 	"fyne.io/fyne/v2/widget"
 	"github.com/signintech/gopdf"
+	"github.com/ubavic/bas-celik/helper"
 	"github.com/ubavic/bas-celik/widgets"
 	"image"
 	"math"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"time"
@@ -146,24 +146,6 @@ func (doc IdDocument) BuildUI(statusBar *widgets.StatusBar, enableManualUI func(
 	return container.New(layout.NewVBoxLayout(), cols, buttonBar)
 }
 
-func PrintPDF(file string, pdfType string) {
-	cmd := exec.Command("./print_doc", file)
-
-	err := cmd.Start() // Use Start() instead of Run() if you want non-blocking execution
-	if err != nil {
-		fmt.Printf("Error starting command: %s\n", err)
-		os.Exit(1)
-	}
-
-	err = cmd.Wait() // Wait for the command to finish
-	if err != nil {
-		fmt.Printf("Command finished with error: %s\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Println("Document sent to the " + pdfType)
-}
-
 func (doc *IdDocument) BuildSign() (*string, error) {
 	executable, err := os.Executable() // Gets the path of the current executable.
 	if err != nil {
@@ -191,14 +173,20 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 	execPath := filepath.Dir(executable) // Finds the directory of the executable.
 	formPath := filepath.Join(execPath, "templates/form-01.pdf")
 
+	err = helper.AppendCSV(form)
+	if err != nil {
+		fmt.Println("Error getting executable path:", err)
+		return nil, err
+	}
+
 	pdfInject := pdfinject.New()
 	dest, err := pdfInject.FillWithDestFile(form, formPath, "tmp.pdf")
 	if err != nil {
 		fmt.Println("Error getting executable path:", err)
 	}
 
-	//PrintPDF("tmp.pdf", "Parlament")
-	//PrintPDF("tmp.pdf", "Parlament X2")
+	//helper.PrintPDF("tmp.pdf", "Parlament")
+	//helper.PrintPDF("tmp.pdf", "Parlament X2")
 
 	return dest, nil
 }
@@ -405,7 +393,7 @@ func (doc *IdDocument) BuildPdf() (retErr error) {
 		os.Exit(1)
 	}
 
-	//PrintPDF("id.pdf", "licna karata")
+	//helper.PrintPDF("id.pdf", "licna karata")
 
 	return nil
 }
