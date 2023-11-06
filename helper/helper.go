@@ -14,9 +14,15 @@ var statusBar *widgets.StatusBar
 type Form map[string]interface{}
 
 func AppendCSV(form Form) error {
+	// Ensure the 'data' directory exists
+	dataDir := "data"
+	if err := os.MkdirAll(dataDir, os.ModePerm); err != nil {
+		return fmt.Errorf("error creating directory: %v", err)
+	}
+
 	// Get the current date in dd-mm-yyyy format
 	date := time.Now().Format("02-01-2006")
-	fileName := date + ".csv"
+	fileName := fmt.Sprintf("%s/%s.csv", dataDir, date)
 
 	// Check if the file exists
 	fileExists := false
@@ -27,7 +33,7 @@ func AppendCSV(form Form) error {
 	// Open the file in append mode or create it if it doesn't exist
 	file, err := os.OpenFile(fileName, os.O_WRONLY|os.O_CREATE|os.O_APPEND, 0644)
 	if err != nil {
-		panic(err)
+		return fmt.Errorf("error opening file: %v", err)
 	}
 	defer file.Close()
 
@@ -42,7 +48,7 @@ func AppendCSV(form Form) error {
 			header = append(header, key)
 		}
 		if err := w.Write(header); err != nil {
-			return err
+			return fmt.Errorf("error writing header: %v", err)
 		}
 	}
 
@@ -58,12 +64,8 @@ func AppendCSV(form Form) error {
 		record = append(record, strValue)
 	}
 	if err := w.Write(record); err != nil {
-		// Here you should return the error after setting the status
-		// gui.SetStatus should be a valid call if gui is properly imported and SetStatus is exported
-		//gui.SetStatus("Error appending to CSV", err)
-		return err
+		return fmt.Errorf("error writing record: %v", err)
 	}
-	w.Flush()
 
 	return nil
 }
