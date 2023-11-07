@@ -75,9 +75,6 @@ func (doc *IdDocument) formatAddress() string {
 		address.WriteString(doc.Community)
 	}
 
-	address.WriteString(", ")
-	address.WriteString(doc.Place)
-
 	return address.String()
 }
 
@@ -232,11 +229,11 @@ func (doc *IdDocument) BuildSign() (*string, error) {
 		"field_fullName":                   doc.formatName(),
 		"field_personalNumber":             doc.PersonalNumber,
 		"field_place":                      doc.Place,
-		"field_streetHouseNumber":          doc.formatAddress(),
+		"field_streetHouseNumber":          doc.Street + " " + doc.AddressNumber,
 		"field_firstLastName":              doc.formatName(),
 		"field_dateOfBirth":                doc.DateOfBirth,
-		"field_placeStreetWithHouseNumber": doc.Place,
-		"field_documentInfo":               doc.IssuingAuthority + ", " + doc.IssuingDate + ", " + doc.DocumentNumber,
+		"field_placeStreetWithHouseNumber": doc.Place + ", " + doc.formatAddress(),
+		"field_documentInfo":               doc.DocumentType + ", " + doc.DocumentNumber + ", " + doc.IssuingDate + ", " + doc.IssuingAuthority,
 		"field_authorizedCertifier":        "",
 		"field_workingPlace":               "",
 		"field_documentRegistryNo":         "",
@@ -277,11 +274,11 @@ func (doc *IdDocument) BuildSignLocal() (*string, error) {
 		"field_fullName":                   doc.formatName(),
 		"field_personalNumber":             doc.PersonalNumber,
 		"field_place":                      doc.Place,
-		"field_streetHouseNumber":          doc.formatAddress(),
+		"field_streetHouseNumber":          doc.Street + " " + doc.AddressNumber,
 		"field_firstLastName":              doc.formatName(),
 		"field_dateOfBirth":                doc.DateOfBirth,
-		"field_placeStreetWithHouseNumber": doc.Place,
-		"field_documentInfo":               doc.IssuingAuthority + ", " + doc.IssuingDate + ", " + doc.DocumentNumber,
+		"field_placeStreetWithHouseNumber": doc.Place + ", " + doc.formatAddress(),
+		"field_documentInfo":               doc.DocumentType + ", " + doc.DocumentNumber + ", " + doc.IssuingDate + ", " + doc.IssuingAuthority,
 		"field_authorizedCertifier":        "",
 		"field_workingPlace":               "",
 		"field_documentRegistryNo":         "",

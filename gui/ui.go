@@ -179,6 +179,8 @@ func enableManualUI() {
 
 	authorizedCertifierName := widget.NewEntry()
 	authorizedCertifierName.SetPlaceHolder("Ime i prezime overitelja")
+	documentType := widget.NewEntry()
+	documentType.SetPlaceHolder("Tip dokumenta (Licna karata ili Pasos)")
 
 	authorizedCertifierAddress := widget.NewEntry()
 	authorizedCertifierAddress.SetPlaceHolder("Ulica i broj overitelja")
@@ -207,8 +209,8 @@ func enableManualUI() {
 			"field_streetHouseNumber":          address.Text + " " + addressNo.Text,
 			"field_firstLastName":              fullName,
 			"field_dateOfBirth":                DateOfBirth.Text,
-			"field_placeStreetWithHouseNumber": city.Text + " " + place.Text,
-			"field_documentInfo":               issuingAuthority.Text + ", " + issuingDate.Text + ", " + documentNumber.Text,
+			"field_placeStreetWithHouseNumber": city.Text + ", " + address.Text + " " + addressNo.Text,
+			"field_documentInfo":               documentType.Text + ", " + documentNumber.Text + ", " + issuingDate.Text + ", " + issuingAuthority.Text,
 			"field_authorizedCertifier":        authorizedCertifierName.Text,
 			"field_workingPlace":               authorizedCertifierAddress.Text,
 			"field_documentRegistryNo":         "",
@@ -252,8 +254,8 @@ func enableManualUI() {
 			"field_streetHouseNumber":          address.Text + " " + addressNo.Text,
 			"field_firstLastName":              fullName,
 			"field_dateOfBirth":                DateOfBirth.Text,
-			"field_placeStreetWithHouseNumber": city.Text + " " + place.Text,
-			"field_documentInfo":               issuingAuthority.Text + ", " + issuingDate.Text + ", " + documentNumber.Text,
+			"field_placeStreetWithHouseNumber": city.Text + ", " + address.Text + " " + addressNo.Text,
+			"field_documentInfo":               documentType.Text + ", " + documentNumber.Text + ", " + issuingDate.Text + ", " + issuingAuthority.Text,
 			"field_authorizedCertifier":        authorizedCertifierName.Text,
 			"field_workingPlace":               authorizedCertifierAddress.Text,
 			"field_documentRegistryNo":         "",
@@ -291,6 +293,7 @@ func enableManualUI() {
 			widget.NewFormItem("Ime i prezime overitelja", authorizedCertifierName),
 			widget.NewFormItem("Ulica i broj overitelja", authorizedCertifierAddress),
 			widget.NewFormItem("JMBG", personalNumber),
+			widget.NewFormItem("Tip dokumenta (Pasoš ili Lična karta)", documentType),
 			widget.NewFormItem("Broj dokumenta", documentNumber),
 			widget.NewFormItem("Dokument izdao", issuingAuthority),
 			widget.NewFormItem("Datum izdavanja", issuingDate),
